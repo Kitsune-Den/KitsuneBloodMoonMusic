@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xml>
+    <ModInfo>
+        <Name value="KitsuneBloodMoonMusic" />
+        <DisplayName value="Kitsune Blood Moon Music" />
+        <Version value="3.0.0" />
+        <Description value="Plays your own music tracks during the Blood Moon horde night and stops at dawn. Drop .ogg files into the Music folder." />
+        <Author value="AdaInTheLab" />
+    </ModInfo>
+</xml>

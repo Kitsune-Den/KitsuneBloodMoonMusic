@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>KitsuneBloodMoonMusic</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugType>none</DebugType>
+    <!-- The game targets a Unity/Mono net48 profile; Assembly-CSharp has an indirect
+         .NET 4.8 dependency, so IModApi/Mod only import cleanly at net48. We reference
+         the game's own framework + engine DLLs rather than the SDK's. -->
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <NoStdLib>true</NoStdLib>
+    <!-- Point this at your install (or copy the Managed DLLs into ./7dtd-binaries).
+         Override with:  dotnet build -p:GameManaged="D:/path/to/7DaysToDie_Data/Managed" -->
+    <GameManaged Condition="'$(GameManaged)' == ''">G:/SteamLibrary/steamapps/common/7 Days To Die/7DaysToDie_Data/Managed</GameManaged>
+    <GameManaged Condition="Exists('$(MSBuildProjectDirectory)/7dtd-binaries')">$(MSBuildProjectDirectory)/7dtd-binaries</GameManaged>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="mscorlib"><HintPath>$(GameManaged)/mscorlib.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System"><HintPath>$(GameManaged)/System.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Core"><HintPath>$(GameManaged)/System.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="netstandard"><HintPath>$(GameManaged)/netstandard.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(GameManaged)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(GameManaged)/Assembly-CSharp-firstpass.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameManaged)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AudioModule"><HintPath>$(GameManaged)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule"><HintPath>$(GameManaged)/UnityEngine.UnityWebRequestModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UnityWebRequestAudioModule"><HintPath>$(GameManaged)/UnityEngine.UnityWebRequestAudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(GameManaged)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>
