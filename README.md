@@ -15,19 +15,19 @@ This is **client-side only**. It affects your own game audio, so each player ins
 
 ## Your own music
 
-Tracks live in `KitsuneBloodMoonMusic/Music/` as **Ogg Vorbis** (`.ogg`) files and play in filename order — prefix with numbers (`1_`, `2_`, …) to set the order.
+Tracks live in `KitsuneBloodMoonMusic/Music/` as **`.ogg`**, **`.mp3`** or **`.wav`** files and play in filename order — prefix with numbers (`1_`, `2_`, … `10_`) to set the order. Numbers sort as numbers, so `2_` comes before `10_`. Other files in the folder (playlists, cover art) are ignored.
 
-Convert any audio to `.ogg` with ffmpeg:
+Anything else converts to `.ogg` with ffmpeg:
 
 ```
-ffmpeg -i "your track.mp3" -vn -c:a libvorbis -q:a 5 "1_your_track.ogg"
+ffmpeg -i "your track.flac" -vn -c:a libvorbis -q:a 5 "1_your_track.ogg"
 ```
 
 Swap in whatever you like — remove the bundled tracks and drop in your own.
 
 ## How it works
 
-An `IModApi` mod that polls `GameManager.Instance.World.aiDirector.BloodMoonComponent.BloodMoonActive` once per second, driving a `DontDestroyOnLoad` `AudioSource`. Clips are loaded at startup via `UnityWebRequestMultimedia.GetAudioClip`.
+An `IModApi` mod that polls `GameManager.Instance.World.aiDirector.BloodMoonComponent.BloodMoonActive` once per second, driving a `DontDestroyOnLoad` `AudioSource`. Clips are loaded at startup, sorted by name, via `UnityWebRequestMultimedia.GetAudioClip`.
 
 ## Build
 
