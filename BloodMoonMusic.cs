@@ -54,6 +54,7 @@ public class BloodMoonMusicComponent : MonoBehaviour
             .Where(f => TypeOf(f) != AudioType.UNKNOWN)
             .OrderBy(f => Path.GetFileName(f), NaturalOrder.Instance)
             .ToList();
+        files = FromPlaylist(files);
         foreach (var f in files)
         {
             // A proper file URL, so names with spaces or # load too.
@@ -75,6 +76,33 @@ public class BloodMoonMusicComponent : MonoBehaviour
         }
         _loaded = true;
         Debug.Log("[BloodMoonMusic] loaded " + _clips.Count + " track(s)");
+    }
+
+    /// <summary>A playlist file in Music/ (Playlist.cs) picks which tracks play
+    /// and in what order; without one, every track plays in file-name order.</summary>
+    private List<string> FromPlaylist(List<string> files)
+    {
+        var file = Playlist.Find(MusicDir);
+        if (file == null) return files;
+        try
+        {
+            var entries = Playlist.Read(file);
+            var missing = new List<string>();
+            var ordered = Playlist.Order(entries, files, missing);
+            Debug.Log("[BloodMoonMusic] playlist " + Path.GetFileName(file) + ": " + ordered.Count + " of " + entries.Count + " found");
+            if (missing.Count > 0)
+            {
+                Debug.Log("[BloodMoonMusic] not in Music/: " + string.Join("; ", missing.Take(10).ToArray())
+                    + (missing.Count > 10 ? " (and " + (missing.Count - 10) + " more)" : ""));
+            }
+            if (ordered.Count > 0) return ordered;
+            Debug.LogWarning("[BloodMoonMusic] none of the playlist's songs are in Music/; playing every track instead");
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[BloodMoonMusic] couldn't read " + Path.GetFileName(file) + ": " + e.Message + "; playing every track instead");
+        }
+        return files;
     }
 
     /// <summary>What Unity should decode a file as; UNKNOWN for anything we don't play.</summary>
@@ -116,39 +144,5 @@ public class BloodMoonMusicComponent : MonoBehaviour
         _source.clip = _clips[_idx % _clips.Count];
         _idx++;
         _source.Play();
-    }
-}
-
-/// <summary>Compares names the way people number them: runs of digits as
-/// numbers ("2_Song" before "10_Song"), the rest ignoring case.</summary>
-public class NaturalOrder : IComparer<string>
-{
-    public static readonly NaturalOrder Instance = new NaturalOrder();
-
-    public int Compare(string a, string b)
-    {
-        int i = 0, j = 0;
-        while (i < a.Length && j < b.Length)
-        {
-            if (char.IsDigit(a[i]) && char.IsDigit(b[j]))
-            {
-                int si = i, sj = j;
-                while (i < a.Length && char.IsDigit(a[i])) i++;
-                while (j < b.Length && char.IsDigit(b[j])) j++;
-                var na = a.Substring(si, i - si).TrimStart('0');
-                var nb = b.Substring(sj, j - sj).TrimStart('0');
-                if (na.Length != nb.Length) return na.Length.CompareTo(nb.Length);
-                int c = string.CompareOrdinal(na, nb);
-                if (c != 0) return c;
-            }
-            else
-            {
-                int c = char.ToLowerInvariant(a[i]).CompareTo(char.ToLowerInvariant(b[j]));
-                if (c != 0) return c;
-                i++;
-                j++;
-            }
-        }
-        return (a.Length - i).CompareTo(b.Length - j);
     }
 }

@@ -17,6 +17,15 @@ This is **client-side only**. It affects your own game audio, so each player ins
 
 Tracks live in `KitsuneBloodMoonMusic/Music/` as **`.ogg`**, **`.mp3`** or **`.wav`** files and play in filename order — prefix with numbers (`1_`, `2_`, … `10_`) to set the order. Numbers sort as numbers, so `2_` comes before `10_`. Other files in the folder (playlists, cover art) are ignored.
 
+### Your playlist, your files
+
+To pick which tracks play and in what order, put a playlist file in `Music/` next to them. The songs still come from your own files: the playlist only names them.
+
+- **Spotify:** export the playlist with [Exportify](https://exportify.app/) and drop the `.csv` in. Or use Spotify's *Download your data* (Account → Privacy) and drop in `Playlist1.json`: the playlist named like "Blood Moon" or "Horde" plays, else the first one.
+- **Other apps:** a CSV with a track name (or title) column and an artist column (TuneMyMusic, Soundiiz), or an `.m3u` / `.m3u8` list of file names.
+
+Each song is matched to a file by name, so `Iron Nine - Remainder.mp3`, `3_Remainder.ogg` and `remainder.wav` all match "Remainder" by Iron Nine, as does "Remainder - Radio Edit". Songs in the playlist you don't have a file for are listed in the game's log and skipped; files the playlist doesn't name don't play. With several playlist files, the one named `playlist` wins, else the first by name. No playlist file: every track plays, in file-name order.
+
 Anything else converts to `.ogg` with ffmpeg:
 
 ```
