@@ -20,6 +20,9 @@ public class XUiC_BloodMoonMusicRadio : XUiController
     const float RangeDb = 45f;
     // How fast a bar falls, in full heights per second.
     const float Fall = 1.8f;
+    // Music has far less energy up high, so without this only the left bars move:
+    // each octave up gets this much more gain (the top bars about +27 dB).
+    const float TiltDbPerOctave = 3.5f;
 
     static readonly Color PowerOn = new Color32(255, 70, 58, 255);
     static readonly Color PowerOff = new Color32(120, 120, 124, 255);
@@ -100,7 +103,7 @@ public class XUiC_BloodMoonMusicRadio : XUiController
                 int lo = Bin(b), hi = Mathf.Max(Bin(b + 1), lo + 1);
                 float peak = 0f;
                 for (int i = lo; i < hi && i < Samples; i++) peak = Mathf.Max(peak, spectrum[i]);
-                float db = 20f * Mathf.Log10(peak * gain + 1e-7f);
+                float db = 20f * Mathf.Log10(peak * gain + 1e-7f) + TiltDbPerOctave * Mathf.Log(lo, 2f);
                 target = Mathf.Clamp01((db - FloorDb) / RangeDb);
             }
             levels[b] = Mathf.Max(target, levels[b] - Fall * dt);
@@ -131,7 +134,7 @@ public class XUiC_BloodMoonMusicRadio : XUiController
         if (track != null)
         {
             track.Text = current >= 0
-                ? "TRACK " + (current + 1).ToString("00") + "  " + music.Playing
+                ? "TRACK " + (current + 1).ToString("00") + "  " + BloodMoonMusicComponent.DisplayName(music.Playing)
                 : "TRACK --  " + count + (count == 1 ? " TRACK" : " TRACKS") + " READY";
         }
         if (station != null) station.Text = BloodMoonMusicSettings.YourStation ? "YOURS" : "KITSUNE'S";

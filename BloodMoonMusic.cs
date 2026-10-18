@@ -62,6 +62,16 @@ public class BloodMoonMusicComponent : MonoBehaviour
     /// <summary>The track that's playing, or null.</summary>
     public string Playing => _source != null && _source.isPlaying && _source.clip != null ? _source.clip.name : null;
 
+    /// <summary>A track's file name as people would write it: the order number
+    /// and underscores gone, so "1_Seven_Days_Stand" shows as "Seven Days Stand".</summary>
+    public static string DisplayName(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return name;
+        string s = System.Text.RegularExpressions.Regex.Replace(name, @"^\d+\s*[-_.)\s]\s*", "");
+        s = s.Replace('_', ' ').Trim();
+        return s.Length > 0 ? s : name;
+    }
+
     private void Start()
     {
         Instance = this;

@@ -140,7 +140,7 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         if (music == null) return Red + "Blood Moon Music isn't running[-]";
         if (!music.Loaded) return Dim + "Loading tracks...[-]";
         string playing = music.Playing;
-        if (playing != null) return Gold + "Playing:[-] " + playing;
+        if (playing != null) return Gold + "Playing:[-] " + BloodMoonMusicComponent.DisplayName(playing);
         return music.BloodMoonNow ? "Blood Moon is up" : Dim + "Waiting for the Blood Moon[-]";
     }
 
@@ -165,7 +165,7 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         for (int i = 0; i < names.Count; i++)
         {
             if (i == room - 1 && names.Count > room) { lines.Add(Dim + "...and " + (names.Count - i) + " more[-]"); break; }
-            string line = (i + 1) + ". " + names[i];
+            string line = (i + 1) + ". " + BloodMoonMusicComponent.DisplayName(names[i]);
             lines.Add(names[i] == playing ? Gold + line + "[-]" : line);
         }
         if (missing.Count > 0)
