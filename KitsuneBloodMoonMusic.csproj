@@ -6,6 +6,9 @@
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Its display name comes from a .NET 4.8 targeting pack when one is installed
+         (CI) and is blank when not, which would make the DLLs differ. The game never reads it. -->
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <DebugType>none</DebugType>
     <!-- The game targets a Unity/Mono net48 profile; Assembly-CSharp has an indirect
@@ -13,6 +16,10 @@
          the game's own framework + engine DLLs rather than the SDK's. -->
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
     <NoStdLib>true</NoStdLib>
+    <!-- Without this, a machine with no .NET 4.8 targeting pack pulls in Microsoft's
+         net48 reference package, and its mscorlib wins over the game's: same code,
+         different overloads (no String.Split(char)), so a different DLL than CI's. -->
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
     <!-- Point this at your install (or copy the Managed DLLs into ./7dtd-binaries).
          Override with:  dotnet build -p:GameManaged="D:/path/to/7DaysToDie_Data/Managed" -->
     <GameManaged Condition="'$(GameManaged)' == ''">G:/SteamLibrary/steamapps/common/7 Days To Die/7DaysToDie_Data/Managed</GameManaged>
@@ -25,6 +32,9 @@
     <!-- Otherwise refs/*.dll become project items, and reference resolution checks
          those before HintPath, so they'd win over the real game. -->
     <DefaultItemExcludes>$(DefaultItemExcludes);refs/**</DefaultItemExcludes>
+    <!-- The framework is the game's own Mono profile, not .NET Framework 4.8: needs no
+         targeting pack, and every machine (and CI) compiles against the same mscorlib. -->
+    <FrameworkPathOverride>$(ManagedDir)</FrameworkPathOverride>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="mscorlib"><HintPath>$(ManagedDir)/mscorlib.dll</HintPath><Private>false</Private></Reference>
