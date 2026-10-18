@@ -1,0 +1,10 @@
+<configs>
+
+	<!-- The Blood Moon Music settings window, opened from the Esc menu. -->
+	<append xpath="/xui">
+		<window_group name="bmMusic">
+			<window name="bmMusicWindow" />
+		</window_group>
+	</append>
+
+</configs>

@@ -1,0 +1,49 @@
+<configs>
+
+	<!-- Esc menu: a Blood Moon Music button under Options. The wrapper rect's -->
+	<!-- controller opens the settings window when the button is pressed.      -->
+	<insertAfter xpath="/windows/window[@name='ingameMenu']/grid[@name='buttons']/simplebutton[@name='btnOptions']">
+		<rect name="bmMusicEntry" width="250" height="46" controller="BloodMoonMusicOpener, KitsuneBloodMoonMusic">
+			<simplebutton name="btnBloodMoonMusic" depth="3" width="250" height="46" caption="Blood Moon Music" font_size="28" />
+		</rect>
+	</insertAfter>
+
+	<!-- The settings window. Vanilla templates only, so it works without KitsuneUI. -->
+	<!-- Changes apply and save straight away; the controller fills the labels.      -->
+	<append xpath="/windows">
+		<window name="bmMusicWindow" width="640" height="640" pos="-320,320" anchor="Center" depth="40" cursor_area="true" controller="BloodMoonMusicWindow, KitsuneBloodMoonMusic">
+			<rect name="header" width="640" height="43" depth="1">
+				<headerbg />
+				<label style="header.name" pos="12,-6" width="600" text="Blood Moon Music" />
+			</rect>
+			<rect name="content" pos="0,-46" width="640" height="594" depth="1">
+				<boxbg />
+			</rect>
+
+			<!-- volume and fade: - value + -->
+			<label depth="3" name="lblVolumeName" pos="24,-84" width="220" height="34" pivot="left" font_size="26" text="Volume" />
+			<simplebutton name="btnVolDown" depth="3" pos="300,-66" width="56" height="36" font_size="28" caption="-" />
+			<label depth="3" name="lblVolume" pos="362,-84" width="110" height="34" pivot="left" justify="center" font_size="26" text="" />
+			<simplebutton name="btnVolUp" depth="3" pos="478,-66" width="56" height="36" font_size="28" caption="+" />
+
+			<label depth="3" name="lblFadeName" pos="24,-132" width="270" height="34" pivot="left" font_size="26" text="Fade out at dawn" />
+			<simplebutton name="btnFadeDown" depth="3" pos="300,-114" width="56" height="36" font_size="28" caption="-" />
+			<label depth="3" name="lblFade" pos="362,-132" width="110" height="34" pivot="left" justify="center" font_size="26" text="" />
+			<simplebutton name="btnFadeUp" depth="3" pos="478,-114" width="56" height="36" font_size="28" caption="+" />
+
+			<togglebutton name="tglMute" depth="3" pos="20,-164" width="600" height="40" font_size="24" caption="Mute the game's own music while yours plays" />
+
+			<simplebutton name="btnPreview" depth="3" pos="20,-220" width="190" height="40" font_size="24" caption="Preview" />
+			<simplebutton name="btnReload" depth="3" pos="225,-220" width="190" height="40" font_size="24" caption="Reload" />
+			<simplebutton name="btnFolder" depth="3" pos="430,-220" width="190" height="40" font_size="24" caption="Open folder" />
+
+			<label depth="3" name="lblStatus" pos="24,-292" width="592" height="32" pivot="left" font_size="24" overflow="shrinkcontent" text="" />
+
+			<!-- tracks in play order, then any playlist songs with no file -->
+			<label depth="3" name="lblTracks" pos="24,-316" width="592" height="260" pivot="topleft" justify="left" font_size="21" overflow="clampcontent" text="" />
+
+			<simplebutton name="btnClose" depth="3" pos="450,-586" width="170" height="40" font_size="24" caption_key="xuiClose" />
+		</window>
+	</append>
+
+</configs>
