@@ -1,3 +1,5 @@
+![Kitsune Blood Moon Music: make your own Blood Moon playlist or listen to Kitsune's. Compatible with 7 Days to Die v3.x](docs/header.jpg)
+
 # Kitsune Blood Moon Music
 
 A client-side [7 Days to Die](https://7daystodie.com/) mod (V3.0 "Dead Hot Summer") that plays music during the Blood Moon horde night: **Kitsune's tracks**, which come with the mod, or **your own**.
