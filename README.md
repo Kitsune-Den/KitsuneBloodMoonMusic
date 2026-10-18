@@ -63,7 +63,16 @@ dotnet build -c Release
 dotnet build -c Release -p:GameManaged="D:/path/to/7DaysToDie_Data/Managed"
 ```
 
-The built `KitsuneBloodMoonMusic.dll` goes in the `KitsuneBloodMoonMusic/` mod folder next to `ModInfo.xml`.
+The built `KitsuneBloodMoonMusic.dll` goes in the `KitsuneBloodMoonMusic/` mod folder next to `ModInfo.xml`; commit it with the source change.
+
+No game install? The build falls back to `refs/`: stripped reference assemblies with the game's API and none of its code, made by JetBrains Refasmer. Regenerate them from a **client** install (the dedicated server's `Assembly-CSharp` leaves out the UI types) when the game updates or you add a reference:
+
+```
+dotnet tool install --global JetBrains.Refasmer.CliTool
+bash tools/strip-refs.sh "D:/path/to/7 Days To Die"
+```
+
+The SDK is pinned in `global.json` (8.0.421). CI (`.github/workflows/build.yml`) builds against `refs/` on every PR and push to `main`, checks the committed DLL is byte-for-byte what the source builds to, and checks the mod's XML parses.
 
 ## Credits
 

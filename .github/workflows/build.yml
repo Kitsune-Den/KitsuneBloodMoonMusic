@@ -1,0 +1,59 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  # Compiles the mod against the stripped 7 Days to Die reference assemblies in
+  # refs/ (the runner has no game install, so the csproj falls back to them),
+  # checks the committed DLL is what the source builds to, and that the mod's
+  # XML parses. Windows because the mod targets .NET Framework 4.8.
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # The SDK in global.json: the DLL check compares bytes, and a different
+      # compiler can emit a different (but equally good) DLL.
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build KitsuneBloodMoonMusic.csproj -c Release -warnaserror -o out
+
+      - name: Committed DLL matches the source
+        shell: pwsh
+        run: |
+          $built = (Get-FileHash out/KitsuneBloodMoonMusic.dll).Hash
+          $committed = (Get-FileHash KitsuneBloodMoonMusic/KitsuneBloodMoonMusic.dll).Hash
+          if ($built -ne $committed) {
+            Write-Output "::error file=KitsuneBloodMoonMusic/KitsuneBloodMoonMusic.dll::The committed DLL isn't what the source builds to. Run 'dotnet build -c Release', copy bin/Release/KitsuneBloodMoonMusic.dll into KitsuneBloodMoonMusic/, and commit it."
+            exit 1
+          }
+          Write-Output "KitsuneBloodMoonMusic.dll is current ($built)"
+
+      - name: Mod XML parses
+        shell: pwsh
+        run: |
+          $failed = $false
+          $files = @(Get-Item KitsuneBloodMoonMusic/ModInfo.xml) + @(Get-ChildItem KitsuneBloodMoonMusic/Config -Recurse -Filter *.xml)
+          foreach ($f in $files) {
+            try { [xml](Get-Content -Raw $f.FullName) | Out-Null; Write-Output "ok  $($f.Name)" }
+            catch { Write-Output "::error file=$($f.FullName)::$($_.Exception.Message)"; $failed = $true }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Upload mod folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: KitsuneBloodMoonMusic
+          path: KitsuneBloodMoonMusic/

@@ -17,19 +17,27 @@
          Override with:  dotnet build -p:GameManaged="D:/path/to/7DaysToDie_Data/Managed" -->
     <GameManaged Condition="'$(GameManaged)' == ''">G:/SteamLibrary/steamapps/common/7 Days To Die/7DaysToDie_Data/Managed</GameManaged>
     <GameManaged Condition="Exists('$(MSBuildProjectDirectory)/7dtd-binaries')">$(MSBuildProjectDirectory)/7dtd-binaries</GameManaged>
+    <!-- No game install here (CI, or a contributor without the game): build against
+         the stripped reference assemblies in refs/. They hold the API only, no game
+         code; tools/strip-refs.sh regenerates them. -->
+    <ManagedDir>$(GameManaged)</ManagedDir>
+    <ManagedDir Condition="!Exists('$(ManagedDir)/Assembly-CSharp.dll')">$(MSBuildProjectDirectory)/refs</ManagedDir>
+    <!-- Otherwise refs/*.dll become project items, and reference resolution checks
+         those before HintPath, so they'd win over the real game. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);refs/**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="mscorlib"><HintPath>$(GameManaged)/mscorlib.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="System"><HintPath>$(GameManaged)/System.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="System.Core"><HintPath>$(GameManaged)/System.Core.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="netstandard"><HintPath>$(GameManaged)/netstandard.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Assembly-CSharp"><HintPath>$(GameManaged)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(GameManaged)/Assembly-CSharp-firstpass.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="Newtonsoft.Json"><HintPath>$(GameManaged)/Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.CoreModule"><HintPath>$(GameManaged)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.AudioModule"><HintPath>$(GameManaged)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.UnityWebRequestModule"><HintPath>$(GameManaged)/UnityEngine.UnityWebRequestModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine.UnityWebRequestAudioModule"><HintPath>$(GameManaged)/UnityEngine.UnityWebRequestAudioModule.dll</HintPath><Private>false</Private></Reference>
-    <Reference Include="UnityEngine"><HintPath>$(GameManaged)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="mscorlib"><HintPath>$(ManagedDir)/mscorlib.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System"><HintPath>$(ManagedDir)/System.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Core"><HintPath>$(ManagedDir)/System.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="netstandard"><HintPath>$(ManagedDir)/netstandard.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)/Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp-firstpass"><HintPath>$(ManagedDir)/Assembly-CSharp-firstpass.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(ManagedDir)/Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ManagedDir)/UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AudioModule"><HintPath>$(ManagedDir)/UnityEngine.AudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UnityWebRequestModule"><HintPath>$(ManagedDir)/UnityEngine.UnityWebRequestModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UnityWebRequestAudioModule"><HintPath>$(ManagedDir)/UnityEngine.UnityWebRequestAudioModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)/UnityEngine.dll</HintPath><Private>false</Private></Reference>
   </ItemGroup>
 </Project>
