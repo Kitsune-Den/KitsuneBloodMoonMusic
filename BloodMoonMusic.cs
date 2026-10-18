@@ -6,9 +6,10 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 
-// Kitsune Blood Moon Music — client-side. Plays your own tracks during the
-// Blood Moon horde and stops at dawn. Drop .ogg, .mp3 or .wav files in the
-// mod's Music/ folder; they play in file-name order (1_, 2_, ... 10_).
+// Kitsune Blood Moon Music — client-side. Plays music during the Blood Moon
+// horde and fades out at dawn: Kitsune's tracks (the mod's Music/ folder) or
+// your own (.ogg, .mp3 or .wav in the user data folder's KitsuneBloodMoonMusic/
+// Music), in file-name order (1_, 2_, ... 10_) or a playlist's.
 public class BloodMoonMusicApi : IModApi
 {
     public void InitMod(Mod _modInstance)
@@ -16,16 +17,22 @@ public class BloodMoonMusicApi : IModApi
         var go = new GameObject("KitsuneBloodMoonMusic");
         UnityEngine.Object.DontDestroyOnLoad(go);
         var comp = go.AddComponent<BloodMoonMusicComponent>();
-        comp.MusicDir = Path.Combine(_modInstance.Path, "Music");
+        comp.KitsuneDir = Path.Combine(_modInstance.Path, "Music");
         BloodMoonMusicSettings.Load();
-        Debug.Log("[BloodMoonMusic] init; music dir = " + comp.MusicDir);
+        // There from the start, so Open folder has somewhere to go.
+        try { Directory.CreateDirectory(BloodMoonMusicSettings.YourMusicDir); }
+        catch (Exception e) { Debug.LogWarning("[BloodMoonMusic] couldn't create " + BloodMoonMusicSettings.YourMusicDir + ": " + e.Message); }
+        Debug.Log("[BloodMoonMusic] init; station " + BloodMoonMusicSettings.Station + ", music dir = " + comp.MusicDir);
     }
 }
 
 public class BloodMoonMusicComponent : MonoBehaviour
 {
     public static BloodMoonMusicComponent Instance;
-    public string MusicDir;
+    /// <summary>The tracks that come with the mod.</summary>
+    public string KitsuneDir;
+    /// <summary>The station's folder: Kitsune's tracks or the player's own.</summary>
+    public string MusicDir => BloodMoonMusicSettings.YourStation ? BloodMoonMusicSettings.YourMusicDir : KitsuneDir;
     private AudioSource _source;
     private readonly List<AudioClip> _clips = new List<AudioClip>();
     private bool _wasActive;
@@ -33,6 +40,9 @@ public class BloodMoonMusicComponent : MonoBehaviour
     private float _timer;
     private bool _loaded;
     private bool _preview;
+    // Power pressed during a horde: no music until it's over.
+    private bool _silenced;
+    private int _current = -1;
     private Coroutine _fade;
 
     /// <summary>Playlist songs with no file in Music/, for the settings window.</summary>
@@ -43,6 +53,12 @@ public class BloodMoonMusicComponent : MonoBehaviour
     public bool Preview => _preview;
     public bool BloodMoonNow => IsBloodMoon();
     public IEnumerable<string> Tracks => _clips.Select(c => c.name);
+    public int TrackCount => _clips.Count;
+    /// <summary>The playing track's place in the list, or -1.</summary>
+    public int CurrentIndex => Playing != null ? _current : -1;
+    public bool Fading => _fade != null;
+    /// <summary>Horde night, with the music switched off with the power button.</summary>
+    public bool Silenced => _silenced;
     /// <summary>The track that's playing, or null.</summary>
     public string Playing => _source != null && _source.isPlaying && _source.clip != null ? _source.clip.name : null;
 
@@ -71,6 +87,7 @@ public class BloodMoonMusicComponent : MonoBehaviour
         Missing.Clear();
         PlaylistName = null;
         _idx = 0;
+        _current = -1;
         // If it's horde night, Update turns the music (and the mute) back on
         // once the new tracks are in.
         _wasActive = false;
@@ -178,7 +195,9 @@ public class BloodMoonMusicComponent : MonoBehaviour
         _timer = 0f;
         if (!_loaded || _clips.Count == 0) return;
 
-        bool active = _preview || IsBloodMoon();
+        bool bloodMoon = IsBloodMoon();
+        if (!bloodMoon) _silenced = false;
+        bool active = _preview || (bloodMoon && !_silenced);
         if (active && !_wasActive)
         {
             _wasActive = true;
@@ -245,25 +264,81 @@ public class BloodMoonMusicComponent : MonoBehaviour
 
     private void PlayNext()
     {
-        _source.clip = _clips[_idx % _clips.Count];
-        _idx++;
+        _current = _idx % _clips.Count;
+        _source.clip = _clips[_current];
+        _idx = _current + 1;
         _source.Play();
         Debug.Log("[BloodMoonMusic] playing " + _source.clip.name);
     }
 
-    /// <summary>For the bmmusic console command: play the tracks now, Blood Moon
-    /// or not, until it is called again. Returns whether the preview is on.</summary>
-    public bool TogglePreview()
+    /// <summary>The power button: playing, it stops (with the fade; during a horde,
+    /// until dawn); stopped, it plays the tracks now, Blood Moon or not.
+    /// Returns whether music is on.</summary>
+    public bool Power()
     {
-        _preview = !_preview;
+        bool on = Playing != null && _fade == null;
+        if (on)
+        {
+            _preview = false;
+            if (IsBloodMoon()) _silenced = true;
+        }
+        else
+        {
+            _silenced = false;
+            _preview = true;
+        }
         _timer = 1f;
-        return _preview;
+        return !on;
+    }
+
+    /// <summary>Play the track at this place in the list now, turning the music
+    /// on if it was off.</summary>
+    public void PlayTrack(int index)
+    {
+        if (!_loaded || index < 0 || index >= _clips.Count) return;
+        if (_fade != null) { StopCoroutine(_fade); _fade = null; }
+        _source.volume = BloodMoonMusicSettings.Volume;
+        _silenced = false;
+        if (!_wasActive) { _preview = true; _wasActive = true; }
+        _idx = index;
+        PlayNext();
+        if (BloodMoonMusicSettings.MuteGameMusic) MuteGameMusic();
+    }
+
+    /// <summary>The next (1) or previous (-1) track, wrapping round.</summary>
+    public void Seek(int step)
+    {
+        int n = _clips.Count;
+        if (n == 0) return;
+        int from = CurrentIndex;
+        int to = from < 0 ? (step > 0 ? 0 : n - 1) : ((from + step) % n + n) % n;
+        PlayTrack(to);
+    }
+
+    /// <summary>Kitsune's tracks or yours: switch, save, and load the other folder.
+    /// Music that was on carries on, from the new station's first track.</summary>
+    public void SwitchStation()
+    {
+        if (!_loaded) return;
+        BloodMoonMusicSettings.Station = BloodMoonMusicSettings.YourStation ? "kitsune" : "yours";
+        BloodMoonMusicSettings.Save();
+        Reload();
+    }
+
+    /// <summary>The playing track's spectrum, for the radio's level bars; false when
+    /// nothing is playing.</summary>
+    public bool GetSpectrum(float[] samples)
+    {
+        if (_source == null || !_source.isPlaying) return false;
+        _source.GetSpectrumData(samples, 0, FFTWindow.BlackmanHarris);
+        return true;
     }
 
     public string Status()
     {
         return (_loaded ? _clips.Count + " track(s) loaded" : "still loading tracks")
             + "; Blood Moon " + (IsBloodMoon() ? "on" : "off")
+            + "; station " + BloodMoonMusicSettings.Station
             + (_preview ? "; preview on" : "")
             + (_source != null && _source.isPlaying ? "; playing " + _source.clip.name : "; not playing");
     }
@@ -278,7 +353,7 @@ public class ConsoleCmdBloodMoonMusic : ConsoleCmdAbstract
 
     public override string[] getCommands() { return new[] { "bmmusic" }; }
 
-    public override string getDescription() { return "Kitsune Blood Moon Music: status, 'bmmusic play' to preview the tracks, 'bmmusic reload' to read the Music folder again"; }
+    public override string getDescription() { return "Kitsune Blood Moon Music: status; play (on/off), next, station (Kitsune's or yours), reload"; }
 
     public override void Execute(List<string> _params, CommandSenderInfo _senderInfo)
     {
@@ -286,7 +361,17 @@ public class ConsoleCmdBloodMoonMusic : ConsoleCmdAbstract
         if (bmm == null) { SdtdConsole.Instance.Output("Blood Moon Music isn't running"); return; }
         if (_params.Count > 0 && _params[0] == "play")
         {
-            SdtdConsole.Instance.Output(bmm.TogglePreview() ? "preview on: 'bmmusic play' again to stop" : "preview off");
+            SdtdConsole.Instance.Output(bmm.Power() ? "music on: 'bmmusic play' again to stop" : "music off");
+        }
+        else if (_params.Count > 0 && _params[0] == "next")
+        {
+            bmm.Seek(1);
+        }
+        else if (_params.Count > 0 && _params[0] == "station")
+        {
+            bmm.SwitchStation();
+            SdtdConsole.Instance.Output("station: " + BloodMoonMusicSettings.Station + "; loading " + bmm.MusicDir);
+            return;
         }
         else if (_params.Count > 0 && _params[0] == "reload")
         {

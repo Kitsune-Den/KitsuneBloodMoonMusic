@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-/// <summary>The Blood Moon Music button on the Esc menu: opens the settings window.</summary>
+/// <summary>The Blood Moon Music button on the Esc menu: opens the radio.</summary>
 public class XUiC_BloodMoonMusicOpener : XUiController
 {
     public override void Init()
@@ -17,9 +17,9 @@ public class XUiC_BloodMoonMusicOpener : XUiController
 }
 
 /// <summary>
-/// The settings window: volume, fade length, muting the game's music, a preview,
-/// reloading and opening the Music folder, and the tracks with any playlist songs
-/// that have no file. Every change applies and saves straight away.
+/// The radio's settings page: volume, fade length, muting the game's music,
+/// reloading and opening the station's folder, and its tracks with any playlist
+/// songs that have no file. Every change applies and saves straight away.
 /// </summary>
 public class XUiC_BloodMoonMusicWindow : XUiController
 {
@@ -34,7 +34,6 @@ public class XUiC_BloodMoonMusicWindow : XUiController
     XUiV_Label status;
     XUiV_Label tracks;
     XUiC_ToggleButton mute;
-    XUiC_SimpleButton preview;
     float refresh;
 
     public override void Init()
@@ -57,11 +56,14 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         WhenPressed("btnVolUp", () => StepVolume(1));
         WhenPressed("btnFadeDown", () => StepFade(-1));
         WhenPressed("btnFadeUp", () => StepFade(1));
-        preview = Button("btnPreview");
-        WhenPressed("btnPreview", () => Music?.TogglePreview());
         WhenPressed("btnReload", () => Music?.Reload());
         WhenPressed("btnFolder", OpenFolder);
-        WhenPressed("btnClose", () => xui.playerUI.windowManager.Close("bmMusic"));
+        WhenPressed("btnBack", () =>
+        {
+            xui.playerUI.windowManager.Close("bmMusicSettings");
+            xui.playerUI.windowManager.Open("bmMusic", true);
+        });
+        WhenPressed("btnClose", () => xui.playerUI.windowManager.Close("bmMusicSettings"));
     }
 
     public override void OnOpen()
@@ -129,7 +131,6 @@ public class XUiC_BloodMoonMusicWindow : XUiController
             fade.Text = s <= 0f ? "Off" : s.ToString("0.#") + " s";
         }
         var music = Music;
-        if (preview != null) preview.Text = music != null && music.Preview ? "Stop preview" : "Preview";
         if (status != null) status.Text = Status(music);
         if (tracks != null) tracks.Text = TrackList(music);
     }
@@ -148,12 +149,13 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         if (music == null || !music.Loaded) return "";
         var names = music.Tracks.ToList();
         var lines = new List<string>();
+        string station = BloodMoonMusicSettings.YourStation ? "Your music" : "Kitsune's tracks";
         lines.Add(music.PlaylistName != null
-            ? Gold + "Playlist " + music.PlaylistName + ":[-] " + names.Count + " of " + (names.Count + music.Missing.Count) + " songs found"
-            : Gold + names.Count + " track(s)[-], in file-name order");
+            ? Gold + station + ", playlist " + music.PlaylistName + ":[-] " + names.Count + " of " + (names.Count + music.Missing.Count) + " songs found"
+            : Gold + station + ":[-] " + names.Count + " track(s), in file-name order");
         if (names.Count == 0)
         {
-            lines.Add(Red + "No .ogg, .mp3 or .wav files in the Music folder.[-]");
+            lines.Add(Red + "No .ogg, .mp3 or .wav files in this station's folder.[-]");
             lines.Add(Dim + "Open it, drop some in, then Reload.[-]");
         }
         string playing = music.Playing;

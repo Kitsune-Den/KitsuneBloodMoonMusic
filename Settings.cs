@@ -15,9 +15,18 @@ public static class BloodMoonMusicSettings
     public static float FadeSeconds = 6f;
     /// <summary>Turn the game's own music down while ours plays.</summary>
     public static bool MuteGameMusic = true;
+    /// <summary>"kitsune" for the tracks that come with the mod, "yours" for the
+    /// player's own folder (YourMusicDir).</summary>
+    public static string Station = "kitsune";
+    public static bool YourStation => Station == "yours";
 
     public static string FilePath =>
         Path.Combine(GameIO.GetDefaultUserGameDataPath(), "KitsuneBloodMoonMusic", "settings.txt");
+
+    /// <summary>The player's own music, in the user data folder so it survives
+    /// mod updates (which replace the mod's own Music folder).</summary>
+    public static string YourMusicDir =>
+        Path.Combine(GameIO.GetDefaultUserGameDataPath(), "KitsuneBloodMoonMusic", "Music");
 
     public static void Load()
     {
@@ -36,6 +45,8 @@ public static class BloodMoonMusicSettings
                 FadeSeconds = Mathf.Clamp(fade, 0f, 60f);
             if (values.TryGetValue("muteGameMusic", out var m) && bool.TryParse(m, out var mute))
                 MuteGameMusic = mute;
+            if (values.TryGetValue("station", out var st))
+                Station = st == "yours" ? "yours" : "kitsune";
         }
         catch (Exception e)
         {
@@ -53,6 +64,7 @@ public static class BloodMoonMusicSettings
                 "volume=" + Volume.ToString("0.##", CultureInfo.InvariantCulture),
                 "fade=" + FadeSeconds.ToString("0.##", CultureInfo.InvariantCulture),
                 "muteGameMusic=" + (MuteGameMusic ? "true" : "false"),
+                "station=" + Station,
             });
         }
         catch (Exception e)

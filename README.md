@@ -1,8 +1,8 @@
 # Kitsune Blood Moon Music
 
-A client-side [7 Days to Die](https://7daystodie.com/) mod (V3.0 "Dead Hot Summer") that plays **your own music** during the Blood Moon horde night and stops at dawn.
+A client-side [7 Days to Die](https://7daystodie.com/) mod (V3.0 "Dead Hot Summer") that plays music during the Blood Moon horde night: **Kitsune's tracks**, which come with the mod, or **your own**.
 
-When the Blood Moon begins, your tracks play in order and the game's own music steps aside. When one finishes, the next begins; the mod loops back to the top if the night runs long. When the horde ends at dawn, the music fades out and the game's music returns.
+When the Blood Moon begins, the tracks play in order and the game's own music steps aside. When one finishes, the next begins; the mod loops back to the top if the night runs long. When the horde ends at dawn, the music fades out and the game's music returns.
 
 ## Install
 
@@ -15,16 +15,18 @@ This is **client-side only**. It affects your own game audio, so each player ins
 
 ## Your own music
 
-Tracks live in `KitsuneBloodMoonMusic/Music/` as **`.ogg`**, **`.mp3`** or **`.wav`** files and play in filename order — prefix with numbers (`1_`, `2_`, … `10_`) to set the order. Numbers sort as numbers, so `2_` comes before `10_`. Other files in the folder (playlists, cover art) are ignored.
+Put **`.ogg`**, **`.mp3`** or **`.wav`** files in your music folder, `%APPDATA%/7DaysToDie/KitsuneBloodMoonMusic/Music/` (the radio's **Settings > Open folder** takes you there while you're on your station), then press **STATIONS** on the radio to switch from Kitsune's tracks to yours. That folder is outside the mod, so updating the mod never touches your music.
+
+Tracks play in filename order — prefix with numbers (`1_`, `2_`, … `10_`) to set the order. Numbers sort as numbers, so `2_` comes before `10_`. Other files in the folder (playlists, cover art) are ignored.
 
 ### Your playlist, your files
 
-To pick which tracks play and in what order, put a playlist file in `Music/` next to them. The songs still come from your own files: the playlist only names them.
+To pick which tracks play and in what order, put a playlist file in your music folder next to them. The songs still come from your own files: the playlist only names them.
 
 - **Spotify:** export the playlist with Exportify and drop the `.csv` in. Or use Spotify's *Download your data* (Account → Privacy) and drop in `Playlist1.json`: the playlist named like "Blood Moon" or "Horde" plays, else the first one.
 - **Other apps:** a CSV with a track name (or title) column and an artist column (TuneMyMusic, Soundiiz), or an `.m3u` / `.m3u8` list of file names.
 
-Each song is matched to a file by name, so `Iron Nine - Remainder.mp3`, `3_Remainder.ogg` and `remainder.wav` all match "Remainder" by Iron Nine, as does "Remainder - Radio Edit". Songs in the playlist you don't have a file for are skipped and listed in the settings window; files the playlist doesn't name don't play. With several playlist files, the one named `playlist` wins, else the first by name. No playlist file: every track plays, in file-name order.
+Each song is matched to a file by name, so `Iron Nine - Remainder.mp3`, `3_Remainder.ogg` and `remainder.wav` all match "Remainder" by Iron Nine, as does "Remainder - Radio Edit". Songs in the playlist you don't have a file for are skipped and listed on the radio's settings page; files the playlist doesn't name don't play. With several playlist files, the one named `playlist` wins, else the first by name. No playlist file: every track plays, in file-name order.
 
 Anything else converts to `.ogg` with ffmpeg:
 
@@ -32,22 +34,22 @@ Anything else converts to `.ogg` with ffmpeg:
 ffmpeg -i "your track.flac" -vn -c:a libvorbis -q:a 5 "1_your_track.ogg"
 ```
 
-Swap in whatever you like — remove the bundled tracks and drop in your own, then press **Reload** in the settings window.
+Added tracks while the game is running? Press **Settings > Reload** on the radio.
 
-## Settings
+## The radio
 
 Esc menu > **Blood Moon Music**:
 
-- **Volume** of your tracks, and how long they **fade out at dawn** (off to 30 s).
-- **Mute the game's own music while yours plays** (on by default), so the game's horde and combat music doesn't play over yours.
-- **Preview** plays your tracks now, so you can hear them without waiting for horde night.
-- **Reload** reads the Music folder again after you add or remove tracks or a playlist; no restart needed.
-- **Open folder** opens the Music folder.
-- The tracks in play order (the one playing is highlighted), and any playlist songs with no file in the folder.
+- **Power** plays the music now, Blood Moon or not; pressed while it plays, it fades out (during a horde, the music stays off until dawn).
+- **The display** shows the status (horde night active, playing, waiting for the Blood Moon), the track, the station, the volume, and level bars that move with the music.
+- **VOL +** and **VOL -**.
+- **1 to 6** play that track now; **SEEK** steps back and forward through all of them.
+- **STATIONS** switches between Kitsune's tracks and your own music folder.
+- **SETTINGS**: how long the music **fades out at dawn** (off to 30 s), **mute the game's own music while yours plays** (on by default), **Reload** the station's folder after adding or removing tracks or a playlist, **Open folder**, and the station's tracks in play order with any playlist songs that have no file.
 
 Settings are saved per player in `%APPDATA%/7DaysToDie/KitsuneBloodMoonMusic/settings.txt`.
 
-The same things from the console (F1): `bmmusic` for what the mod sees, `bmmusic play` to preview (again to stop), `bmmusic reload` to read the folder again. The game's log (`%APPDATA%/7DaysToDie/logs`) shows `[BloodMoonMusic] Blood Moon: music on` when the horde starts, each track as it plays, and `music off` after the dawn fade.
+The same things from the console (F1): `bmmusic` for what the mod sees, `bmmusic play` (on/off), `bmmusic next`, `bmmusic station`, `bmmusic reload`. The game's log (`%APPDATA%/7DaysToDie/logs`) shows `[BloodMoonMusic] Blood Moon: music on` when the horde starts, each track as it plays, and `music off` after the dawn fade.
 
 ## How it works
 
