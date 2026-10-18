@@ -1,0 +1,13 @@
+<configs>
+
+	<!-- The Blood Moon Music radio, opened from the Esc menu, and its settings page. -->
+	<append xpath="/xui">
+		<window_group name="bmMusic">
+			<window name="bmMusicRadio" />
+		</window_group>
+		<window_group name="bmMusicSettings">
+			<window name="bmMusicWindow" />
+		</window_group>
+	</append>
+
+</configs>

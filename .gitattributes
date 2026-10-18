@@ -1,0 +1,2 @@
+# Shell scripts stay LF, or bash chokes on the CR after each line.
+*.sh text eol=lf
