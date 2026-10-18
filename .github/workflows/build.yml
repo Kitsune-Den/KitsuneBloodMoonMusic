@@ -57,3 +57,12 @@ jobs:
         with:
           name: KitsuneBloodMoonMusic
           path: KitsuneBloodMoonMusic/
+
+      # What CI built, even when a check failed, so a DLL mismatch can be compared.
+      - name: Upload built DLL
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-dll
+          path: out/KitsuneBloodMoonMusic.dll
+          if-no-files-found: ignore
