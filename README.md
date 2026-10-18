@@ -78,4 +78,8 @@ The SDK is pinned in `global.json` (8.0.421). CI (`.github/workflows/build.yml`)
 
 ## Credits
 
-Bundled music is original work by **AdaInTheLab** (Iron Nine / Kitsune Den). Mod by AdaInTheLab. MIT licensed (see `LICENSE`); the music is the author's own and shared with the mod.
+Bundled music is original work by **AdaInTheLab** (Iron Nine / Kitsune Den). Mod by AdaInTheLab. The music is the author's own and shared with the mod.
+
+## License
+
+[CC BY-NC-SA 4.0](LICENSE), with an extra permission for servers that make money: see [NOTICE.md](NOTICE.md). In short: play it, change it and share it, with credit, not for sale, and with changed versions under the same license.
