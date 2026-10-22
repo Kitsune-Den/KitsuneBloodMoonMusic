@@ -51,6 +51,8 @@ Esc menu > **Blood Moon Music**:
 
 Settings are saved per player in `%APPDATA%/7DaysToDie/KitsuneBloodMoonMusic/settings.txt`.
 
+The radio and its settings page follow the game's language: German, Spanish, French, Italian, Japanese, Korean, Polish, Brazilian Portuguese, Russian, Turkish, and Simplified and Traditional Chinese. The text lives in `Config/Localization.csv` (read by V3.x) and `Config/Localization.txt` (read by V2.x); keep the two in sync. The mod's name and the KITSUNE badge stay as they are, and so does the `bmmusic` console output.
+
 The same things from the console (F1): `bmmusic` for what the mod sees, `bmmusic play` (on/off), `bmmusic next`, `bmmusic station`, `bmmusic reload`. The game's log (`%APPDATA%/7DaysToDie/logs`) shows `[BloodMoonMusic] Blood Moon: music on` when the horde starts, each track as it plays, and `music off` after the dawn fade.
 
 ## How it works
