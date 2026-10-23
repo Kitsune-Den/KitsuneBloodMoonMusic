@@ -42,7 +42,7 @@ Added tracks while the game is running? Press **Settings > Reload** on the radio
 
 Esc menu > **Blood Moon Music**:
 
-- **Power** plays the music now, Blood Moon or not; pressed while it plays, it fades out (during a horde, the music stays off until dawn).
+- **Power** plays the music now, Blood Moon or not; pressed while it plays, it fades out (during a horde, the music stays off until dawn). Music switched on before a horde carries on into it and fades out at dawn like the horde's.
 - **The display** shows the status (horde night active, playing, waiting for the Blood Moon), the track, the station, the volume, and level bars that move with the music.
 - **VOL +** and **VOL -**.
 - **1 to 6** play that track now; **SEEK** steps back and forward through all of them.
@@ -63,7 +63,7 @@ The same things from the console (F1): `bmmusic` for what the mod sees, `bmmusic
 
 ## How it works
 
-An `IModApi` mod that checks `World.IsWorldEvent(WorldEvent.BloodMoon)` once per second, driving a `DontDestroyOnLoad` `AudioSource`. That flag comes from the world clock and the horde day, so it is set on a client of a server too (the AI director's own Blood Moon flag only exists where the world is hosted). Clips are loaded at startup, sorted by name, via `UnityWebRequestMultimedia.GetAudioClip`.
+An `IModApi` mod that checks `World.IsWorldEvent(WorldEvent.BloodMoon)` once per second, driving a `DontDestroyOnLoad` `AudioSource`. That flag comes from the world clock and the horde day, so it is set on a client of a server too (the AI director's own Blood Moon flag only exists where the world is hosted). The station's files are listed at startup, sorted by name (or in a playlist's order), but only the playing track and the one after it are read into memory, via `UnityWebRequestMultimedia.GetAudioClip`: a read track takes about 10 MB a minute, so a long playlist all at once would take gigabytes. At dawn both are let go. The once-a-second check runs on real time, so a track still follows the last one while single-player is paused in the Esc menu.
 
 Unity plays all of the game's sound on one device and can't send a single `AudioSource` anywhere else, so for another **Output** a filter on the music's `AudioSource` (`OutputTap.cs`) takes each block of samples, silences what Unity would play, and hands the music to Windows' `waveOut` on the chosen device (`WaveOut.cs`). The `AudioSource` still keeps time, ends tracks and fades; the level bars come from the tapped samples.
 
