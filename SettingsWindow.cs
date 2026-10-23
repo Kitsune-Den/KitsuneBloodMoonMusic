@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using T = BloodMoonMusicText;
 
 /// <summary>The Blood Moon Music button on the Esc menu: opens the radio.</summary>
 public class XUiC_BloodMoonMusicOpener : XUiController
@@ -128,7 +129,7 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         if (fade != null)
         {
             float s = BloodMoonMusicSettings.FadeSeconds;
-            fade.Text = s <= 0f ? "Off" : s.ToString("0.#") + " s";
+            fade.Text = s <= 0f ? T.Get("bmmOff", "Off") : T.Format("bmmSeconds", "{0} s", s.ToString("0.#"));
         }
         var music = Music;
         if (status != null) status.Text = Status(music);
@@ -137,11 +138,13 @@ public class XUiC_BloodMoonMusicWindow : XUiController
 
     static string Status(BloodMoonMusicComponent music)
     {
-        if (music == null) return Red + "Blood Moon Music isn't running[-]";
-        if (!music.Loaded) return Dim + "Loading tracks...[-]";
+        if (music == null) return Red + T.Get("bmmNotRunning", "Blood Moon Music isn't running") + "[-]";
+        if (!music.Loaded) return Dim + T.Get("bmmLoadingTracks", "Loading tracks...") + "[-]";
         string playing = music.Playing;
-        if (playing != null) return Gold + "Playing:[-] " + BloodMoonMusicComponent.DisplayName(playing);
-        return music.BloodMoonNow ? "Blood Moon is up" : Dim + "Waiting for the Blood Moon[-]";
+        if (playing != null) return Gold + T.Get("bmmPlaying", "Playing:") + "[-] " + BloodMoonMusicComponent.DisplayName(playing);
+        return music.BloodMoonNow
+            ? T.Get("bmmBloodMoonUp", "Blood Moon is up")
+            : Dim + T.Get("bmmWaiting", "Waiting for the Blood Moon") + "[-]";
     }
 
     static string TrackList(BloodMoonMusicComponent music)
@@ -149,14 +152,17 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         if (music == null || !music.Loaded) return "";
         var names = music.Tracks.ToList();
         var lines = new List<string>();
-        string station = BloodMoonMusicSettings.YourStation ? "Your music" : "Kitsune's tracks";
+        string station = BloodMoonMusicSettings.YourStation
+            ? T.Get("bmmYourMusic", "Your music")
+            : T.Get("bmmKitsuneTracks", "Kitsune's tracks");
         lines.Add(music.PlaylistName != null
-            ? Gold + station + ", playlist " + music.PlaylistName + ":[-] " + names.Count + " of " + (names.Count + music.Missing.Count) + " songs found"
-            : Gold + station + ":[-] " + names.Count + " track(s), in file-name order");
+            ? Gold + T.Format("bmmPlaylistLabel", "{0}, playlist {1}:", station, music.PlaylistName) + "[-] "
+                + T.Format("bmmSongsFound", "{0} of {1} songs found", names.Count, names.Count + music.Missing.Count)
+            : Gold + station + ":[-] " + T.Format("bmmTrackCount", "{0} track(s), in file-name order", names.Count));
         if (names.Count == 0)
         {
-            lines.Add(Red + "No .ogg, .mp3 or .wav files in this station's folder.[-]");
-            lines.Add(Dim + "Open it, drop some in, then Reload.[-]");
+            lines.Add(Red + T.Get("bmmNoAudioFiles", "No .ogg, .mp3 or .wav files in this station's folder.") + "[-]");
+            lines.Add(Dim + T.Get("bmmDropSomeIn", "Open it, drop some in, then Reload.") + "[-]");
         }
         string playing = music.Playing;
         var missing = music.Missing;
@@ -164,17 +170,17 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         int room = ListLines - lines.Count - (missing.Count > 0 ? Math.Min(missing.Count, 2) + 1 : 0);
         for (int i = 0; i < names.Count; i++)
         {
-            if (i == room - 1 && names.Count > room) { lines.Add(Dim + "...and " + (names.Count - i) + " more[-]"); break; }
+            if (i == room - 1 && names.Count > room) { lines.Add(Dim + T.Format("bmmAndMore", "...and {0} more", names.Count - i) + "[-]"); break; }
             string line = (i + 1) + ". " + BloodMoonMusicComponent.DisplayName(names[i]);
             lines.Add(names[i] == playing ? Gold + line + "[-]" : line);
         }
         if (missing.Count > 0)
         {
-            lines.Add(Red + "Not in the Music folder (" + missing.Count + "):[-]");
+            lines.Add(Red + T.Format("bmmNotInFolder", "Not in the Music folder ({0}):", missing.Count) + "[-]");
             int left = ListLines - lines.Count;
             for (int i = 0; i < missing.Count && left > 0; i++, left--)
             {
-                if (left == 1 && missing.Count - i > 1) { lines.Add(Dim + "...and " + (missing.Count - i) + " more[-]"); break; }
+                if (left == 1 && missing.Count - i > 1) { lines.Add(Dim + T.Format("bmmAndMore", "...and {0} more", missing.Count - i) + "[-]"); break; }
                 lines.Add(Dim + missing[i] + "[-]");
             }
         }

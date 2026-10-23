@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using T = BloodMoonMusicText;
 
 /// <summary>
 /// The radio: power (play or stop now), a red display with the status, track and
@@ -130,15 +131,26 @@ public class XUiC_BloodMoonMusicRadio : XUiController
         int current = music != null ? music.CurrentIndex : -1;
         int count = music != null ? music.TrackCount : 0;
 
-        if (status != null) status.Text = "STATUS: " + Hot + Status(music) + "[-]";
+        if (status != null) status.Text = T.Format("bmmRadioStatus", "STATUS: {0}", Hot + Status(music) + "[-]");
         if (track != null)
         {
             track.Text = current >= 0
-                ? "TRACK " + (current + 1).ToString("00") + "  " + BloodMoonMusicComponent.DisplayName(music.Playing)
-                : "TRACK --  " + count + (count == 1 ? " TRACK" : " TRACKS") + " READY";
+                ? T.Format("bmmRadioTrack", "TRACK {0}  {1}", (current + 1).ToString("00"),
+                    BloodMoonMusicComponent.DisplayName(music.Playing))
+                : count == 1
+                    ? T.Get("bmmRadioOneTrackReady", "TRACK --  1 TRACK READY")
+                    : T.Format("bmmRadioTracksReady", "TRACK --  {0} TRACKS READY", count);
         }
-        if (station != null) station.Text = BloodMoonMusicSettings.YourStation ? "YOURS" : "KITSUNE'S";
-        if (volume != null) volume.Text = "VOL " + Mathf.RoundToInt(BloodMoonMusicSettings.Volume * 100f) + "%";
+        if (station != null)
+        {
+            station.Text = BloodMoonMusicSettings.YourStation
+                ? T.Get("bmmRadioStationYours", "YOURS")
+                : T.Get("bmmRadioStationKitsune", "KITSUNE'S");
+        }
+        if (volume != null)
+        {
+            volume.Text = T.Format("bmmRadioVolume", "VOL {0}%", Mathf.RoundToInt(BloodMoonMusicSettings.Volume * 100f));
+        }
         if (powerIcon != null) powerIcon.Color = current >= 0 && !music.Fading ? PowerOn : PowerOff;
         if (stations?.Button != null) stations.Button.Selected = BloodMoonMusicSettings.YourStation;
 
@@ -153,17 +165,17 @@ public class XUiC_BloodMoonMusicRadio : XUiController
 
     static string Status(BloodMoonMusicComponent music)
     {
-        if (music == null) return "NOT RUNNING";
-        if (!music.Loaded) return "LOADING TRACKS";
-        if (music.TrackCount == 0) return "NO TRACKS ON THIS STATION";
-        if (music.Fading) return "FADING OUT";
+        if (music == null) return T.Get("bmmStNotRunning", "NOT RUNNING");
+        if (!music.Loaded) return T.Get("bmmStLoading", "LOADING TRACKS");
+        if (music.TrackCount == 0) return T.Get("bmmStNoTracks", "NO TRACKS ON THIS STATION");
+        if (music.Fading) return T.Get("bmmStFading", "FADING OUT");
         bool playing = music.Playing != null;
         if (music.BloodMoonNow)
         {
-            if (music.Silenced) return "HORDE NIGHT, MUSIC OFF";
-            return playing ? "HORDE NIGHT ACTIVE" : "HORDE NIGHT";
+            if (music.Silenced) return T.Get("bmmStHordeMusicOff", "HORDE NIGHT, MUSIC OFF");
+            return playing ? T.Get("bmmStHordeActive", "HORDE NIGHT ACTIVE") : T.Get("bmmStHorde", "HORDE NIGHT");
         }
-        return playing ? "PLAYING" : "WAITING FOR THE BLOOD MOON";
+        return playing ? T.Get("bmmStPlaying", "PLAYING") : T.Get("bmmStWaiting", "WAITING FOR THE BLOOD MOON");
     }
 
     XUiV_Label Label(string id) => GetChildById(id)?.ViewComponent as XUiV_Label;
