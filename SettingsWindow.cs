@@ -18,20 +18,21 @@ public class XUiC_BloodMoonMusicOpener : XUiController
 }
 
 /// <summary>
-/// The radio's settings page: volume, fade length, muting the game's music,
+/// The radio's settings page: volume, fade length, the output device, muting the game's music,
 /// reloading and opening the station's folder, and its tracks with any playlist
 /// songs that have no file. Every change applies and saves straight away.
 /// </summary>
 public class XUiC_BloodMoonMusicWindow : XUiController
 {
     // Lines the track list has room for, missing songs included.
-    const int ListLines = 11;
+    const int ListLines = 9;
     const string Gold = "[ffc35a]";
     const string Dim = "[9a9a9a]";
     const string Red = "[ff7b6b]";
 
     XUiV_Label volume;
     XUiV_Label fade;
+    XUiV_Label output;
     XUiV_Label status;
     XUiV_Label tracks;
     XUiC_ToggleButton mute;
@@ -42,6 +43,7 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         base.Init();
         volume = Label("lblVolume");
         fade = Label("lblFade");
+        output = Label("lblOutput");
         status = Label("lblStatus");
         tracks = Label("lblTracks");
         mute = GetChildById("tglMute") as XUiC_ToggleButton;
@@ -57,6 +59,8 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         WhenPressed("btnVolUp", () => StepVolume(1));
         WhenPressed("btnFadeDown", () => StepFade(-1));
         WhenPressed("btnFadeUp", () => StepFade(1));
+        WhenPressed("btnOutputPrev", () => StepOutput(-1));
+        WhenPressed("btnOutputNext", () => StepOutput(1));
         WhenPressed("btnReload", () => Music?.Reload());
         WhenPressed("btnFolder", OpenFolder);
         WhenPressed("btnBack", () =>
@@ -71,6 +75,7 @@ public class XUiC_BloodMoonMusicWindow : XUiController
     {
         base.OnOpen();
         if (mute != null) mute.Value = BloodMoonMusicSettings.MuteGameMusic;
+        BloodMoonMusicOutput.Refresh();
         Show();
     }
 
@@ -98,6 +103,20 @@ public class XUiC_BloodMoonMusicWindow : XUiController
         // The step nearest the current value, so a hand-edited file still steps cleanly.
         int i = Array.IndexOf(steps, steps.OrderBy(s => Mathf.Abs(s - BloodMoonMusicSettings.FadeSeconds)).First());
         BloodMoonMusicSettings.FadeSeconds = steps[Mathf.Clamp(i + step, 0, steps.Length - 1)];
+        Changed();
+    }
+
+    void StepOutput(int step)
+    {
+        BloodMoonMusicOutput.Refresh();
+        var choices = BloodMoonMusicOutput.Choices();
+        int i = choices.IndexOf(BloodMoonMusicSettings.Output);
+        // An unplugged device isn't in the list: step from the game's output.
+        i = i < 0 ? (step > 0 ? 0 : choices.Count) : i;
+        string next = choices[((i + step) % choices.Count + choices.Count) % choices.Count];
+        BloodMoonMusicSettings.Output = next;
+        BloodMoonMusicSettings.OutputName = next == BloodMoonMusicOutput.Game || next == BloodMoonMusicOutput.Communication
+            ? "" : BloodMoonMusicOutput.Name(next);
         Changed();
     }
 
@@ -131,6 +150,7 @@ public class XUiC_BloodMoonMusicWindow : XUiController
             float s = BloodMoonMusicSettings.FadeSeconds;
             fade.Text = s <= 0f ? T.Get("bmmOff", "Off") : T.Format("bmmSeconds", "{0} s", s.ToString("0.#"));
         }
+        if (output != null) output.Text = BloodMoonMusicOutput.Name(BloodMoonMusicSettings.Output);
         var music = Music;
         if (status != null) status.Text = Status(music);
         if (tracks != null) tracks.Text = TrackList(music);
@@ -140,6 +160,8 @@ public class XUiC_BloodMoonMusicWindow : XUiController
     {
         if (music == null) return Red + T.Get("bmmNotRunning", "Blood Moon Music isn't running") + "[-]";
         if (!music.Loaded) return Dim + T.Get("bmmLoadingTracks", "Loading tracks...") + "[-]";
+        if (music.OutputError != null)
+            return Red + T.Format("bmmOutputFailed", "Can't play on {0}: using the game's output", BloodMoonMusicOutput.Name(BloodMoonMusicSettings.Output)) + "[-]";
         string playing = music.Playing;
         if (playing != null) return Gold + T.Get("bmmPlaying", "Playing:") + "[-] " + BloodMoonMusicComponent.DisplayName(playing);
         return music.BloodMoonNow

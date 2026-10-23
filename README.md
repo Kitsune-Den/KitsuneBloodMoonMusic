@@ -47,17 +47,21 @@ Esc menu > **Blood Moon Music**:
 - **VOL +** and **VOL -**.
 - **1 to 6** play that track now; **SEEK** steps back and forward through all of them.
 - **STATIONS** switches between Kitsune's tracks and your own music folder.
-- **SETTINGS**: how long the music **fades out at dawn** (off to 30 s), **mute the game's own music while yours plays** (on by default), **Reload** the station's folder after adding or removing tracks or a playlist, **Open folder**, and the station's tracks in play order with any playlist songs that have no file.
+- **SETTINGS**: how long the music **fades out at dawn** (off to 30 s), the **Output** device (below), **mute the game's own music while yours plays** (on by default), **Reload** the station's folder after adding or removing tracks or a playlist, **Open folder**, and the station's tracks in play order with any playlist songs that have no file.
+
+**Output** picks where the music plays. **Game's output** (the default) is wherever the rest of the game's sound goes: Windows' default playback device. On Windows you can also pick **Default communication device** (the one Windows uses for voice chat, often a USB headset), or any output device by name. A device that isn't connected, or won't open, falls back to the game's output and the settings page says so. The game's master volume still applies on any device.
 
 Settings are saved per player in `%APPDATA%/7DaysToDie/KitsuneBloodMoonMusic/settings.txt`.
 
 The radio and its settings page follow the game's language: German, Spanish, French, Italian, Japanese, Korean, Polish, Brazilian Portuguese, Russian, Turkish, and Simplified and Traditional Chinese. The text lives in `Config/Localization.csv` (read by V3.x) and `Config/Localization.txt` (read by V2.x); keep the two in sync. The mod's name and the KITSUNE badge stay as they are, and so does the `bmmusic` console output.
 
-The same things from the console (F1): `bmmusic` for what the mod sees, `bmmusic play` (on/off), `bmmusic next`, `bmmusic station`, `bmmusic reload`. The game's log (`%APPDATA%/7DaysToDie/logs`) shows `[BloodMoonMusic] Blood Moon: music on` when the horde starts, each track as it plays, and `music off` after the dawn fade.
+The same things from the console (F1): `bmmusic` for what the mod sees, `bmmusic play` (on/off), `bmmusic next`, `bmmusic station`, `bmmusic reload`, `bmmusic output` (the devices, numbered; `bmmusic output 2` picks one). The game's log (`%APPDATA%/7DaysToDie/logs`) shows `[BloodMoonMusic] Blood Moon: music on` when the horde starts, each track as it plays, and `music off` after the dawn fade.
 
 ## How it works
 
 An `IModApi` mod that checks `World.IsWorldEvent(WorldEvent.BloodMoon)` once per second, driving a `DontDestroyOnLoad` `AudioSource`. That flag comes from the world clock and the horde day, so it is set on a client of a server too (the AI director's own Blood Moon flag only exists where the world is hosted). Clips are loaded at startup, sorted by name, via `UnityWebRequestMultimedia.GetAudioClip`.
+
+Unity plays all of the game's sound on one device and can't send a single `AudioSource` anywhere else, so for another **Output** a filter on the music's `AudioSource` (`OutputTap.cs`) takes each block of samples, silences what Unity would play, and hands the music to Windows' `waveOut` on the chosen device (`WaveOut.cs`). The `AudioSource` still keeps time, ends tracks and fades; the level bars come from the tapped samples.
 
 ## Build
 
