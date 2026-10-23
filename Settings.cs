@@ -19,6 +19,11 @@ public static class BloodMoonMusicSettings
     /// player's own folder (YourMusicDir).</summary>
     public static string Station = "kitsune";
     public static bool YourStation => Station == "yours";
+    /// <summary>Where the music plays (BloodMoonMusicOutput): "game", "comm" for
+    /// the Windows default communication device, or a device's endpoint ID.</summary>
+    public static string Output = BloodMoonMusicOutput.Game;
+    /// <summary>That device's name, for the settings page while it's unplugged.</summary>
+    public static string OutputName = "";
 
     public static string FilePath =>
         Path.Combine(GameIO.GetDefaultUserGameDataPath(), "KitsuneBloodMoonMusic", "settings.txt");
@@ -47,6 +52,10 @@ public static class BloodMoonMusicSettings
                 MuteGameMusic = mute;
             if (values.TryGetValue("station", out var st))
                 Station = st == "yours" ? "yours" : "kitsune";
+            if (values.TryGetValue("output", out var o) && o != "")
+                Output = o;
+            if (values.TryGetValue("outputName", out var on))
+                OutputName = on;
         }
         catch (Exception e)
         {
@@ -65,6 +74,8 @@ public static class BloodMoonMusicSettings
                 "fade=" + FadeSeconds.ToString("0.##", CultureInfo.InvariantCulture),
                 "muteGameMusic=" + (MuteGameMusic ? "true" : "false"),
                 "station=" + Station,
+                "output=" + Output,
+                "outputName=" + OutputName,
             });
         }
         catch (Exception e)

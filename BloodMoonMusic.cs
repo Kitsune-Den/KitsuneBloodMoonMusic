@@ -34,6 +34,11 @@ public class BloodMoonMusicComponent : MonoBehaviour
     /// <summary>The station's folder: Kitsune's tracks or the player's own.</summary>
     public string MusicDir => BloodMoonMusicSettings.YourStation ? BloodMoonMusicSettings.YourMusicDir : KitsuneDir;
     private AudioSource _source;
+    private BloodMoonMusicTap _tap;
+    /// <summary>The Output setting the tap's device is for.</summary>
+    private string _tapFor;
+    // The music's volume, fades included; SetVolume puts it where it applies.
+    private float _volume;
     private readonly List<AudioClip> _clips = new List<AudioClip>();
     private bool _wasActive;
     private int _idx;
@@ -61,6 +66,9 @@ public class BloodMoonMusicComponent : MonoBehaviour
     public bool Silenced => _silenced;
     /// <summary>The track that's playing, or null.</summary>
     public string Playing => _source != null && _source.isPlaying && _source.clip != null ? _source.clip.name : null;
+    /// <summary>Why the Output setting's device isn't in use (and the music is on
+    /// the game's output instead), or null.</summary>
+    public string OutputError { get; private set; }
 
     /// <summary>A track's file name as people would write it: the order number
     /// and underscores gone, so "1_Seven_Days_Stand" shows as "Seven Days Stand".</summary>
@@ -78,7 +86,9 @@ public class BloodMoonMusicComponent : MonoBehaviour
         _source = gameObject.AddComponent<AudioSource>();
         _source.loop = false;
         _source.spatialBlend = 0f;
-        _source.volume = BloodMoonMusicSettings.Volume;
+        // After the AudioSource, so its filter gets the source's samples.
+        _tap = gameObject.AddComponent<BloodMoonMusicTap>();
+        SetVolume(BloodMoonMusicSettings.Volume);
         StartCoroutine(LoadClips());
     }
 
@@ -101,7 +111,7 @@ public class BloodMoonMusicComponent : MonoBehaviour
         // If it's horde night, Update turns the music (and the mute) back on
         // once the new tracks are in.
         _wasActive = false;
-        _source.volume = BloodMoonMusicSettings.Volume;
+        SetVolume(BloodMoonMusicSettings.Volume);
         _loaded = false;
         Debug.Log("[BloodMoonMusic] reloading " + MusicDir);
         StartCoroutine(LoadClips());
@@ -110,7 +120,9 @@ public class BloodMoonMusicComponent : MonoBehaviour
     /// <summary>After the settings window changes something: apply it now and save.</summary>
     public void SettingsChanged()
     {
-        if (_fade == null) _source.volume = BloodMoonMusicSettings.Volume;
+        if (_fade == null) SetVolume(BloodMoonMusicSettings.Volume);
+        if (_source.isPlaying) UseOutput();
+        else { OutputError = null; CloseOutput(); }
         if (_wasActive)
         {
             if (BloodMoonMusicSettings.MuteGameMusic) MuteGameMusic();
@@ -200,9 +212,18 @@ public class BloodMoonMusicComponent : MonoBehaviour
 
     private void Update()
     {
+        if (_tap != null) _tap.Master = AudioListener.volume;
         _timer += Time.deltaTime;
         if (_timer < 1f) return;
         _timer = 0f;
+        if (_tap.On)
+        {
+            // Nothing to play: let the device go (it opens again with the next track).
+            if (!_source.isPlaying) CloseOutput();
+            // Unplugged, or the game's audio restarted at another rate: open it again,
+            // or carry on on the game's output.
+            else if (_tap.Player.Failed != null || _tap.Player.SampleRate != AudioSettings.outputSampleRate) UseOutput();
+        }
         if (!_loaded || _clips.Count == 0) return;
 
         bool bloodMoon = IsBloodMoon();
@@ -213,7 +234,7 @@ public class BloodMoonMusicComponent : MonoBehaviour
             _wasActive = true;
             Debug.Log("[BloodMoonMusic] Blood Moon: music on");
             // Back on before a fade finished: carry on with the track that was fading.
-            if (_fade != null) { StopCoroutine(_fade); _fade = null; _source.volume = BloodMoonMusicSettings.Volume; }
+            if (_fade != null) { StopCoroutine(_fade); _fade = null; SetVolume(BloodMoonMusicSettings.Volume); }
             if (!_source.isPlaying) PlayNext();
         }
         else if (!active && _wasActive)
@@ -231,16 +252,16 @@ public class BloodMoonMusicComponent : MonoBehaviour
     /// <summary>Fade the track out, then stop it and give the game its music back.</summary>
     private IEnumerator FadeOut()
     {
-        float start = _source.volume;
+        float start = _volume;
         float seconds = BloodMoonMusicSettings.FadeSeconds;
         for (float t = 0f; t < seconds && _source.isPlaying; t += Time.unscaledDeltaTime)
         {
-            _source.volume = Mathf.Lerp(start, 0f, t / seconds);
+            SetVolume(Mathf.Lerp(start, 0f, t / seconds));
             if (BloodMoonMusicSettings.MuteGameMusic) MuteGameMusic();
             yield return null;
         }
         _source.Stop();
-        _source.volume = BloodMoonMusicSettings.Volume;
+        SetVolume(BloodMoonMusicSettings.Volume);
         RestoreGameMusic();
         _fade = null;
         Debug.Log("[BloodMoonMusic] music off");
@@ -277,6 +298,7 @@ public class BloodMoonMusicComponent : MonoBehaviour
         _current = _idx % _clips.Count;
         _source.clip = _clips[_current];
         _idx = _current + 1;
+        UseOutput();
         _source.Play();
         Debug.Log("[BloodMoonMusic] playing " + _source.clip.name);
     }
@@ -307,7 +329,7 @@ public class BloodMoonMusicComponent : MonoBehaviour
     {
         if (!_loaded || index < 0 || index >= _clips.Count) return;
         if (_fade != null) { StopCoroutine(_fade); _fade = null; }
-        _source.volume = BloodMoonMusicSettings.Volume;
+        SetVolume(BloodMoonMusicSettings.Volume);
         _silenced = false;
         if (!_wasActive) { _preview = true; _wasActive = true; }
         _idx = index;
@@ -335,12 +357,59 @@ public class BloodMoonMusicComponent : MonoBehaviour
         Reload();
     }
 
+    /// <summary>The music's volume, fades included. On the game's output that's the
+    /// AudioSource's own; on a device of our own the source stays at 1 and the tap
+    /// scales the samples, whichever side of the filter Unity applies the volume.</summary>
+    private void SetVolume(float volume)
+    {
+        _volume = volume;
+        _tap.Gain = volume;
+        _source.volume = _tap.On ? 1f : volume;
+    }
+
+    /// <summary>Put the music on the device in the Output setting, if it isn't there
+    /// already: on the game's output for that setting, or if the device won't open.</summary>
+    private void UseOutput()
+    {
+        string want = BloodMoonMusicSettings.Output;
+        if (want == BloodMoonMusicOutput.Game || !BloodMoonMusicOutput.Supported)
+        {
+            OutputError = null;
+            CloseOutput();
+            return;
+        }
+        if (_tap.On && _tapFor == want && _tap.Player.Failed == null && _tap.Player.SampleRate == AudioSettings.outputSampleRate) return;
+        if (_tap.On && _tap.Player.Failed != null) Debug.LogWarning("[BloodMoonMusic] lost " + _tap.Player.DeviceName + ": " + _tap.Player.Failed);
+        int number = BloodMoonMusicOutput.Number(want);
+        string error = null;
+        var player = number < 0 ? null : WaveOutPlayer.Open(number, AudioSettings.outputSampleRate, out error);
+        if (number < 0) error = "not connected";
+        _tap.Use(player);
+        _tapFor = player != null ? want : null;
+        OutputError = player == null ? error : null;
+        if (player != null) Debug.Log("[BloodMoonMusic] output: " + player.DeviceName + " at " + player.SampleRate + " Hz");
+        else Debug.LogWarning("[BloodMoonMusic] couldn't play on " + BloodMoonMusicOutput.Name(want) + " (" + error + "); using the game's output");
+        SetVolume(_volume);
+    }
+
+    /// <summary>Back to the game's output (until the next track, if the Output
+    /// setting is another device).</summary>
+    private void CloseOutput()
+    {
+        if (!_tap.On) return;
+        _tap.Close();
+        _tapFor = null;
+        SetVolume(_volume);
+    }
+
     /// <summary>The playing track's spectrum, for the radio's level bars; false when
     /// nothing is playing.</summary>
     public bool GetSpectrum(float[] samples)
     {
         if (_source == null || !_source.isPlaying) return false;
-        _source.GetSpectrumData(samples, 0, FFTWindow.BlackmanHarris);
+        // On a device of our own, Unity only hears the tap's silence.
+        if (_tap.On) _tap.GetSpectrum(samples);
+        else _source.GetSpectrumData(samples, 0, FFTWindow.BlackmanHarris);
         return true;
     }
 
@@ -349,6 +418,8 @@ public class BloodMoonMusicComponent : MonoBehaviour
         return (_loaded ? _clips.Count + " track(s) loaded" : "still loading tracks")
             + "; Blood Moon " + (IsBloodMoon() ? "on" : "off")
             + "; station " + BloodMoonMusicSettings.Station
+            + "; output " + (_tap != null && _tap.On ? _tap.Player.DeviceName : "the game's")
+            + (OutputError != null ? " (" + BloodMoonMusicOutput.Name(BloodMoonMusicSettings.Output) + ": " + OutputError + ")" : "")
             + (_preview ? "; preview on" : "")
             + (_source != null && _source.isPlaying ? "; playing " + _source.clip.name : "; not playing");
     }
@@ -363,7 +434,7 @@ public class ConsoleCmdBloodMoonMusic : ConsoleCmdAbstract
 
     public override string[] getCommands() { return new[] { "bmmusic" }; }
 
-    public override string getDescription() { return "Kitsune Blood Moon Music: status; play (on/off), next, station (Kitsune's or yours), reload"; }
+    public override string getDescription() { return "Kitsune Blood Moon Music: status; play (on/off), next, station (Kitsune's or yours), reload, output [number]"; }
 
     public override void Execute(List<string> _params, CommandSenderInfo _senderInfo)
     {
@@ -382,6 +453,20 @@ public class ConsoleCmdBloodMoonMusic : ConsoleCmdAbstract
             bmm.SwitchStation();
             SdtdConsole.Instance.Output("station: " + BloodMoonMusicSettings.Station + "; loading " + bmm.MusicDir);
             return;
+        }
+        else if (_params.Count > 0 && _params[0] == "output")
+        {
+            BloodMoonMusicOutput.Refresh();
+            var choices = BloodMoonMusicOutput.Choices();
+            if (_params.Count > 1 && int.TryParse(_params[1], out int n) && n >= 1 && n <= choices.Count)
+            {
+                BloodMoonMusicSettings.Output = choices[n - 1];
+                BloodMoonMusicSettings.OutputName = n > 2 ? BloodMoonMusicOutput.Name(choices[n - 1]) : "";
+                bmm.SettingsChanged();
+            }
+            for (int i = 0; i < choices.Count; i++)
+                SdtdConsole.Instance.Output((choices[i] == BloodMoonMusicSettings.Output ? "* " : "  ") + (i + 1) + ". " + BloodMoonMusicOutput.Name(choices[i]));
+            if (choices.Count > 1) SdtdConsole.Instance.Output("'bmmusic output <number>' to choose");
         }
         else if (_params.Count > 0 && _params[0] == "reload")
         {

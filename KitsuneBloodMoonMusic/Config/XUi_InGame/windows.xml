@@ -122,16 +122,22 @@
 			<label depth="3" name="lblFade" pos="362,-132" width="110" height="34" pivot="left" justify="center" font_size="26" text="" />
 			<simplebutton name="btnFadeUp" depth="3" pos="478,-114" width="56" height="36" font_size="28" caption="+" />
 
-			<togglebutton name="tglMute" depth="3" pos="20,-164" width="600" height="40" font_size="24" caption_key="bmmMuteGameMusic" />
+			<!-- output device: < name > -->
+			<label depth="3" name="lblOutputName" pos="24,-180" width="150" height="34" pivot="left" font_size="26" overflow="shrinkcontent" text_key="bmmOutput" />
+			<simplebutton name="btnOutputPrev" depth="3" pos="180,-162" width="56" height="36" font_size="28" caption="&lt;" />
+			<label depth="3" name="lblOutput" pos="242,-180" width="230" height="34" pivot="left" justify="center" font_size="22" overflow="shrinkcontent" text="" />
+			<simplebutton name="btnOutputNext" depth="3" pos="478,-162" width="56" height="36" font_size="28" caption="&gt;" />
 
-			<simplebutton name="btnReload" depth="3" pos="20,-220" width="190" height="40" font_size="24" caption_key="bmmReload" />
-			<simplebutton name="btnFolder" depth="3" pos="225,-220" width="190" height="40" font_size="24" caption_key="bmmOpenFolder" />
-			<simplebutton name="btnBack" depth="3" pos="430,-220" width="190" height="40" font_size="24" caption_key="bmmBackToRadio" />
+			<togglebutton name="tglMute" depth="3" pos="20,-212" width="600" height="40" font_size="24" caption_key="bmmMuteGameMusic" />
 
-			<label depth="3" name="lblStatus" pos="24,-292" width="592" height="32" pivot="left" font_size="24" overflow="shrinkcontent" text="" />
+			<simplebutton name="btnReload" depth="3" pos="20,-268" width="190" height="40" font_size="24" caption_key="bmmReload" />
+			<simplebutton name="btnFolder" depth="3" pos="225,-268" width="190" height="40" font_size="24" caption_key="bmmOpenFolder" />
+			<simplebutton name="btnBack" depth="3" pos="430,-268" width="190" height="40" font_size="24" caption_key="bmmBackToRadio" />
+
+			<label depth="3" name="lblStatus" pos="24,-340" width="592" height="32" pivot="left" font_size="24" overflow="shrinkcontent" text="" />
 
 			<!-- tracks in play order, then any playlist songs with no file -->
-			<label depth="3" name="lblTracks" pos="24,-316" width="592" height="260" pivot="topleft" justify="left" font_size="21" overflow="clampcontent" text="" />
+			<label depth="3" name="lblTracks" pos="24,-364" width="592" height="212" pivot="topleft" justify="left" font_size="21" overflow="clampcontent" text="" />
 
 			<simplebutton name="btnClose" depth="3" pos="450,-586" width="170" height="40" font_size="24" caption_key="xuiClose" />
 		</window>
