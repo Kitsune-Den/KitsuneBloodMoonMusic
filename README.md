@@ -53,6 +53,10 @@ Settings are saved per player in `%APPDATA%/7DaysToDie/KitsuneBloodMoonMusic/set
 
 The same things from the console (F1): `bmmusic` for what the mod sees, `bmmusic play` (on/off), `bmmusic next`, `bmmusic station`, `bmmusic reload`. The game's log (`%APPDATA%/7DaysToDie/logs`) shows `[BloodMoonMusic] Blood Moon: music on` when the horde starts, each track as it plays, and `music off` after the dawn fade.
 
+## Troubleshooting
+
+**The music plays on your speakers, not your headset.** The music goes to Windows' **default playback device**, not the default *communication* device (that one is for voice chat apps like Discord). USB headsets often end up as only the communication device. Right-click the speaker icon > **Sound settings** > **More sound settings**, select your headset on the **Playback** tab, and press **Set Default** (the button itself, not just its *Default Communication Device* option). Restart the game afterwards.
+
 ## How it works
 
 An `IModApi` mod that checks `World.IsWorldEvent(WorldEvent.BloodMoon)` once per second, driving a `DontDestroyOnLoad` `AudioSource`. That flag comes from the world clock and the horde day, so it is set on a client of a server too (the AI director's own Blood Moon flag only exists where the world is hosted). Clips are loaded at startup, sorted by name, via `UnityWebRequestMultimedia.GetAudioClip`.
