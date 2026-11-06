@@ -39,8 +39,21 @@ public class BloodMoonMusicComponent : MonoBehaviour
     private string _tapFor;
     // The music's volume, fades included; SetVolume puts it where it applies.
     private float _volume;
-    private readonly List<AudioClip> _clips = new List<AudioClip>();
+    // The station's audio files, in play order. Only the playing track and the
+    // one after it are read into memory: a read track is about 10 MB a minute,
+    // so a long playlist read all at once would be gigabytes.
+    private readonly List<string> _files = new List<string>();
+    // The next track, read ahead so it starts without a wait, and its place.
+    private AudioClip _next;
+    private int _nextIndex = -1;
+    // The track to start as soon as it's read, or -1.
+    private int _want = -1;
+    // Bumped by Reload, so a track still being read for the old list is dropped.
+    private int _gen;
+    // Tracks in a row that wouldn't load; all of them, and it stops trying until a Reload.
+    private int _failed;
     private bool _wasActive;
+    private bool _wasBloodMoon;
     private int _idx;
     private float _timer;
     private bool _loaded;
@@ -57,10 +70,11 @@ public class BloodMoonMusicComponent : MonoBehaviour
     public bool Loaded => _loaded;
     public bool Preview => _preview;
     public bool BloodMoonNow => IsBloodMoon();
-    public IEnumerable<string> Tracks => _clips.Select(c => c.name);
-    public int TrackCount => _clips.Count;
-    /// <summary>The playing track's place in the list, or -1.</summary>
-    public int CurrentIndex => Playing != null ? _current : -1;
+    public IEnumerable<string> Tracks => _files.Select(f => Path.GetFileNameWithoutExtension(f));
+    public int TrackCount => _files.Count;
+    /// <summary>The playing track's place in the list (or the one about to play,
+    /// while it's read), or -1.</summary>
+    public int CurrentIndex => _want >= 0 ? _want : Playing != null ? _current : -1;
     public bool Fading => _fade != null;
     /// <summary>Horde night, with the music switched off with the power button.</summary>
     public bool Silenced => _silenced;
@@ -89,7 +103,7 @@ public class BloodMoonMusicComponent : MonoBehaviour
         // After the AudioSource, so its filter gets the source's samples.
         _tap = gameObject.AddComponent<BloodMoonMusicTap>();
         SetVolume(BloodMoonMusicSettings.Volume);
-        StartCoroutine(LoadClips());
+        ListTracks();
     }
 
     /// <summary>Read the Music folder again, for tracks or a playlist added
@@ -101,20 +115,21 @@ public class BloodMoonMusicComponent : MonoBehaviour
         if (_wasActive || _fade != null) RestoreGameMusic();
         if (_fade != null) { StopCoroutine(_fade); _fade = null; }
         _source.Stop();
-        _source.clip = null;
-        foreach (var clip in _clips) Destroy(clip);
-        _clips.Clear();
+        FreeTracks();
+        _files.Clear();
         Missing.Clear();
         PlaylistName = null;
         _idx = 0;
         _current = -1;
+        _want = -1;
+        _failed = 0;
+        _gen++;
         // If it's horde night, Update turns the music (and the mute) back on
-        // once the new tracks are in.
+        // with the new list's first track.
         _wasActive = false;
         SetVolume(BloodMoonMusicSettings.Volume);
-        _loaded = false;
         Debug.Log("[BloodMoonMusic] reloading " + MusicDir);
-        StartCoroutine(LoadClips());
+        ListTracks();
     }
 
     /// <summary>After the settings window changes something: apply it now and save.</summary>
@@ -131,42 +146,74 @@ public class BloodMoonMusicComponent : MonoBehaviour
         BloodMoonMusicSettings.Save();
     }
 
-    private IEnumerator LoadClips()
+    /// <summary>The station's tracks, in play order: only their names. Each is
+    /// read when it's about to play (Read).</summary>
+    private void ListTracks()
     {
-        if (!Directory.Exists(MusicDir))
+        if (Directory.Exists(MusicDir))
         {
-            Debug.LogWarning("[BloodMoonMusic] no Music folder at " + MusicDir);
-            _loaded = true;
+            // The folder lists files in no set order (on Linux especially), so sort
+            // them by name, numbers as numbers: 2_ before 10_.
+            var files = Directory.GetFiles(MusicDir)
+                .Where(f => TypeOf(f) != AudioType.UNKNOWN)
+                .OrderBy(f => Path.GetFileName(f), NaturalOrder.Instance)
+                .ToList();
+            _files.AddRange(FromPlaylist(files));
+        }
+        else Debug.LogWarning("[BloodMoonMusic] no Music folder at " + MusicDir);
+        _loaded = true;
+        Debug.Log("[BloodMoonMusic] " + _files.Count + " track(s) on this station");
+    }
+
+    /// <summary>Read the track at this place in the list into memory, then start
+    /// it if it's the one wanted (PlayIndex), or keep it as the next one.</summary>
+    private IEnumerator Read(int index, int gen)
+    {
+        var f = _files[index];
+        AudioClip clip = null;
+        // A proper file URL, so names with spaces or # load too.
+        using (var uwr = UnityWebRequestMultimedia.GetAudioClip(new Uri(f).AbsoluteUri, TypeOf(f)))
+        {
+            yield return uwr.SendWebRequest();
+            if (uwr.result == UnityWebRequest.Result.Success)
+            {
+                clip = DownloadHandlerAudioClip.GetContent(uwr);
+                clip.name = Path.GetFileNameWithoutExtension(f);
+            }
+            else Debug.LogWarning("[BloodMoonMusic] load failed: " + f + " (" + uwr.error + ")");
+        }
+        // Reloaded meanwhile: this list is gone.
+        if (gen != _gen)
+        {
+            if (clip != null) Destroy(clip);
             yield break;
         }
-        // The folder lists files in no set order (on Linux especially), so sort
-        // them by name, numbers as numbers: 2_ before 10_.
-        var files = Directory.GetFiles(MusicDir)
-            .Where(f => TypeOf(f) != AudioType.UNKNOWN)
-            .OrderBy(f => Path.GetFileName(f), NaturalOrder.Instance)
-            .ToList();
-        files = FromPlaylist(files);
-        foreach (var f in files)
+        // The read ahead is done with: kept below, or there's nothing to keep.
+        bool ahead = _nextIndex == index && _next == null;
+        if (ahead && (clip == null || _want == index)) _nextIndex = -1;
+        if (clip == null)
         {
-            // A proper file URL, so names with spaces or # load too.
-            var uri = new Uri(f).AbsoluteUri;
-            using (var uwr = UnityWebRequestMultimedia.GetAudioClip(uri, TypeOf(f)))
-            {
-                yield return uwr.SendWebRequest();
-                if (uwr.result == UnityWebRequest.Result.Success)
-                {
-                    var clip = DownloadHandlerAudioClip.GetContent(uwr);
-                    clip.name = Path.GetFileNameWithoutExtension(f);
-                    _clips.Add(clip);
-                }
-                else
-                {
-                    Debug.LogWarning("[BloodMoonMusic] load failed: " + f + " (" + uwr.error + ")");
-                }
-            }
+            // On to the one after, unless none of them load.
+            if (_want != index) yield break;
+            _want = -1;
+            if (++_failed < _files.Count) PlayIndex((index + 1) % _files.Count);
+            else Debug.LogWarning("[BloodMoonMusic] none of this station's tracks would load");
+            yield break;
         }
-        _loaded = true;
-        Debug.Log("[BloodMoonMusic] loaded " + _clips.Count + " track(s)");
+        if (_want == index) StartClip(clip, index);
+        else if (ahead) _next = clip;
+        else Destroy(clip);
+    }
+
+    /// <summary>Let go of the tracks in memory, the one read ahead too.</summary>
+    private void FreeTracks()
+    {
+        var clip = _source.clip;
+        _source.clip = null;
+        if (clip != null) Destroy(clip);
+        if (_next != null) Destroy(_next);
+        _next = null;
+        _nextIndex = -1;
     }
 
     /// <summary>A playlist file in Music/ (Playlist.cs) picks which tracks play
@@ -213,7 +260,9 @@ public class BloodMoonMusicComponent : MonoBehaviour
     private void Update()
     {
         if (_tap != null) _tap.Master = AudioListener.volume;
-        _timer += Time.deltaTime;
+        // Real time: single-player stops the game's clock in the Esc menu (where
+        // the radio is), and the music plays on there.
+        _timer += Time.unscaledDeltaTime;
         if (_timer < 1f) return;
         _timer = 0f;
         if (_tap.On)
@@ -224,9 +273,12 @@ public class BloodMoonMusicComponent : MonoBehaviour
             // or carry on on the game's output.
             else if (_tap.Player.Failed != null || _tap.Player.SampleRate != AudioSettings.outputSampleRate) UseOutput();
         }
-        if (!_loaded || _clips.Count == 0) return;
+        if (!_loaded || _files.Count == 0) return;
 
         bool bloodMoon = IsBloodMoon();
+        // Music switched on before the horde is the horde's now, so it fades at dawn.
+        if (bloodMoon && !_wasBloodMoon) _preview = false;
+        _wasBloodMoon = bloodMoon;
         if (!bloodMoon) _silenced = false;
         bool active = _preview || (bloodMoon && !_silenced);
         if (active && !_wasActive)
@@ -235,15 +287,16 @@ public class BloodMoonMusicComponent : MonoBehaviour
             Debug.Log("[BloodMoonMusic] Blood Moon: music on");
             // Back on before a fade finished: carry on with the track that was fading.
             if (_fade != null) { StopCoroutine(_fade); _fade = null; SetVolume(BloodMoonMusicSettings.Volume); }
-            if (!_source.isPlaying) PlayNext();
+            if (!_source.isPlaying && _want < 0) PlayNext();
         }
         else if (!active && _wasActive)
         {
             _wasActive = false;
+            _want = -1;
             Debug.Log("[BloodMoonMusic] dawn: fading out");
             _fade = StartCoroutine(FadeOut());
         }
-        else if (active && !_source.isPlaying) { PlayNext(); }
+        else if (active && !_source.isPlaying && _want < 0) { PlayNext(); }
         // Every tick, not once: the game sets the channel again when you change
         // the music volume or its audio snapshot changes.
         if (active && BloodMoonMusicSettings.MuteGameMusic) MuteGameMusic();
@@ -261,6 +314,8 @@ public class BloodMoonMusicComponent : MonoBehaviour
             yield return null;
         }
         _source.Stop();
+        // Out of memory until the next horde.
+        FreeTracks();
         SetVolume(BloodMoonMusicSettings.Volume);
         RestoreGameMusic();
         _fade = null;
@@ -293,14 +348,53 @@ public class BloodMoonMusicComponent : MonoBehaviour
         return world != null && world.IsWorldEvent(World.WorldEvent.BloodMoon);
     }
 
-    private void PlayNext()
+    private void PlayNext() => PlayIndex(_idx % _files.Count);
+
+    /// <summary>Play the track at this place in the list: now if it's in memory,
+    /// else as soon as it's read.</summary>
+    private void PlayIndex(int index)
     {
-        _current = _idx % _clips.Count;
-        _source.clip = _clips[_current];
-        _idx = _current + 1;
+        if (_failed >= _files.Count) return;
+        _idx = index + 1;
+        if (_source.clip != null && _current == index)
+        {
+            // Still in memory (one track on the station, or the same one again).
+            StartClip(_source.clip, index);
+            return;
+        }
+        if (_next != null && _nextIndex == index)
+        {
+            var clip = _next;
+            _next = null;
+            _nextIndex = -1;
+            StartClip(clip, index);
+            return;
+        }
+        _source.Stop();
+        _want = index;
+        // Already being read ahead: it starts when that's done.
+        if (_nextIndex != index) StartCoroutine(Read(index, _gen));
+    }
+
+    /// <summary>Start a track that's in memory, let the last one go, and read the
+    /// one after it ahead.</summary>
+    private void StartClip(AudioClip clip, int index)
+    {
+        _want = -1;
+        _failed = 0;
+        var old = _source.clip;
+        _source.clip = clip;
+        _current = index;
+        if (old != null && old != clip) Destroy(old);
         UseOutput();
         _source.Play();
-        Debug.Log("[BloodMoonMusic] playing " + _source.clip.name);
+        Debug.Log("[BloodMoonMusic] playing " + clip.name);
+        int next = (index + 1) % _files.Count;
+        if (next == index || _nextIndex == next) return;
+        if (_next != null) Destroy(_next);
+        _next = null;
+        _nextIndex = next;
+        StartCoroutine(Read(next, _gen));
     }
 
     /// <summary>The power button: playing, it stops (with the fade; during a horde,
@@ -308,7 +402,7 @@ public class BloodMoonMusicComponent : MonoBehaviour
     /// Returns whether music is on.</summary>
     public bool Power()
     {
-        bool on = Playing != null && _fade == null;
+        bool on = (Playing != null || _want >= 0) && _fade == null;
         if (on)
         {
             _preview = false;
@@ -317,7 +411,8 @@ public class BloodMoonMusicComponent : MonoBehaviour
         else
         {
             _silenced = false;
-            _preview = true;
+            // During a horde that's the horde's music back on, to fade at dawn.
+            _preview = !IsBloodMoon();
         }
         _timer = 1f;
         return !on;
@@ -327,20 +422,21 @@ public class BloodMoonMusicComponent : MonoBehaviour
     /// on if it was off.</summary>
     public void PlayTrack(int index)
     {
-        if (!_loaded || index < 0 || index >= _clips.Count) return;
+        if (!_loaded || index < 0 || index >= _files.Count) return;
         if (_fade != null) { StopCoroutine(_fade); _fade = null; }
         SetVolume(BloodMoonMusicSettings.Volume);
         _silenced = false;
-        if (!_wasActive) { _preview = true; _wasActive = true; }
-        _idx = index;
-        PlayNext();
+        if (!_wasActive) { _preview = !IsBloodMoon(); _wasActive = true; }
+        // A track picked by hand gets another go, even if none would load before.
+        _failed = 0;
+        PlayIndex(index);
         if (BloodMoonMusicSettings.MuteGameMusic) MuteGameMusic();
     }
 
     /// <summary>The next (1) or previous (-1) track, wrapping round.</summary>
     public void Seek(int step)
     {
-        int n = _clips.Count;
+        int n = _files.Count;
         if (n == 0) return;
         int from = CurrentIndex;
         int to = from < 0 ? (step > 0 ? 0 : n - 1) : ((from + step) % n + n) % n;
@@ -415,7 +511,7 @@ public class BloodMoonMusicComponent : MonoBehaviour
 
     public string Status()
     {
-        return (_loaded ? _clips.Count + " track(s) loaded" : "still loading tracks")
+        return (_loaded ? _files.Count + " track(s)" : "still loading tracks")
             + "; Blood Moon " + (IsBloodMoon() ? "on" : "off")
             + "; station " + BloodMoonMusicSettings.Station
             + "; output " + (_tap != null && _tap.On ? _tap.Player.DeviceName : "the game's")
